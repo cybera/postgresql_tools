@@ -1,0 +1,75 @@
+#!/usr/bin/python
+
+# STDIN: an array of paths to WAL files (one line per file)
+#
+# Usage example:
+#
+# find /postgres/WAL/*.gz -mtime -20 | check_wal_continuity
+#
+import re, sys, os, time
+
+wal_match_regex = r'(.*?)/([0-9A-Fa-f]{24})(.*)$'
+
+def main():
+	previous_path = None
+
+	continuity_broken = False
+
+	for path in wal_paths():
+		if previous_path and path != next_expected_path(previous_path):
+			last_sequential_wal_date = timestamp_to_string(os.stat(previous_path).st_mtime)
+			print "WAL continuity broken between %s & %s at %s" % ( previous_path, path, last_sequential_wal_date )
+			continuity_broken = True
+		previous_path = path
+
+	exit(1) if continuity_broken else exit(0)
+
+def next_expected_path(path):
+	wal_name = extract_wal_name(path)
+	base_path = extract_base_path(path)
+	extension = extract_extension(path)
+	( timeline, logical_xlog, physical_xlog ) = wal_name_chunks(wal_name)
+	next_wal_name = next(timeline, logical_xlog, physical_xlog)
+	return "%s/%s%s" % ( base_path, next_wal_name, extension )
+
+def extract_wal_name(path):
+	wal_match = re.match(wal_match_regex, path)
+	return wal_match.group(2)
+
+def extract_base_path(path):
+	path_match = re.match(wal_match_regex, path)
+	return path_match.group(1)
+
+def extract_extension(path):
+	path_match = re.match(wal_match_regex, path)
+	return path_match.group(3)
+
+def next(timeline, logical_xlog, physical_xlog):
+	logical = int("0x%s" % (logical_xlog), 0)
+	physical = int("0x%s" % (physical_xlog), 0)
+
+	if physical < 254:
+		physical = physical + 1
+	else:
+		physical = 0
+		logical = logical + 1
+
+	logical_str = ('%08x' % (logical)).upper()
+	physical_str = ('%08x' % (physical)).upper()
+
+	return "%s%s%s" % ( timeline, logical_str, physical_str )
+
+def wal_name_chunks(s):
+	return [ s[0:8], s[9:16], s[17:24] ]
+
+def wal_paths():
+	paths = [x.strip() for x in sys.stdin.readlines()]
+	backup_marker_regex = re.compile(r'.*backup.*')
+	return sorted([path for path in paths if not backup_marker_regex.match(path)])
+
+def timestamp_to_string(timestamp):
+	time_struct = time.localtime(timestamp)
+	return time.strftime("%Y-%m-%d %H:%M:%S %Z", time_struct)
+
+if __name__ == "__main__":
+	main()
