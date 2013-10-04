@@ -74,6 +74,8 @@ def timestamp_to_string(timestamp):
 	return time.strftime("%Y-%m-%d %H:%M:%S %Z", time_struct)
 
 def known_missing_wal(path):
+	global known_missing_paths
+
 	known_missing_list_path = "/etc/postgresql/cybera/missing_wal_paths.list"
 	if os.path.isfile(known_missing_list_path) and not known_missing_paths:
 		with open(known_missing_list_path) as f:
