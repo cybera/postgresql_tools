@@ -9,6 +9,7 @@
 import re, sys, os, time
 
 wal_match_regex = r'(.*?)/([0-9A-Fa-f]{24})(.*)$'
+known_missing_paths = None
 
 def main():
 	previous_path = None
@@ -17,7 +18,7 @@ def main():
 
 	for path in wal_paths():
 		if previous_path and path != next_expected_path(previous_path):
-			if not known_missing_wal(path):
+			if not known_missing_wal(next_expected_path(previous_path)):
 				last_sequential_wal_date = timestamp_to_string(os.stat(previous_path).st_mtime)
 				print "WAL continuity broken between %s & %s at %s" % ( previous_path, path, last_sequential_wal_date )
 				continuity_broken = True
@@ -73,11 +74,13 @@ def timestamp_to_string(timestamp):
 	return time.strftime("%Y-%m-%d %H:%M:%S %Z", time_struct)
 
 def known_missing_wal(path):
-	known_missing_paths = []
 	known_missing_list_path = "/etc/postgresql/cybera/missing_wal_paths.list"
-	if os.path.isfile(known_missing_list_path):
+	if os.path.isfile(known_missing_list_path) and not known_missing_paths:
 		with open(known_missing_list_path) as f:
 			known_missing_paths = f.readlines()
+	else:
+		known_missing_paths = []
+
 	return (path in known_missing_paths)
 
 
