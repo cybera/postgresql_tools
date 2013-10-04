@@ -6,6 +6,8 @@
 #
 # find /postgres/WAL/*.gz -mtime -20 | check_wal_continuity
 #
+# Adding known missing WAL file paths to /etc/postgresql/cybera/missing_wal_paths.list
+# will cause this script to ignore those paths when reporting continuity breaks.
 import re, sys, os, time
 
 wal_match_regex = r'(.*?)/([0-9A-Fa-f]{24})(.*)$'
