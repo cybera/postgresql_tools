@@ -77,9 +77,10 @@ def known_missing_wal(path):
 	global known_missing_paths
 
 	known_missing_list_path = "/etc/postgresql/cybera/missing_wal_paths.list"
-	if os.path.isfile(known_missing_list_path) and not known_missing_paths:
-		with open(known_missing_list_path) as f:
-			known_missing_paths = f.readlines()
+	if os.path.isfile(known_missing_list_path):
+		if not known_missing_paths:
+			with open(known_missing_list_path) as f:
+				known_missing_paths = [l.strip() for l in f.readlines()]
 	else:
 		known_missing_paths = []
 
