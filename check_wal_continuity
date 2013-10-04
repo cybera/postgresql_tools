@@ -17,9 +17,10 @@ def main():
 
 	for path in wal_paths():
 		if previous_path and path != next_expected_path(previous_path):
-			last_sequential_wal_date = timestamp_to_string(os.stat(previous_path).st_mtime)
-			print "WAL continuity broken between %s & %s at %s" % ( previous_path, path, last_sequential_wal_date )
-			continuity_broken = True
+			if not known_missing_wal(path):
+				last_sequential_wal_date = timestamp_to_string(os.stat(previous_path).st_mtime)
+				print "WAL continuity broken between %s & %s at %s" % ( previous_path, path, last_sequential_wal_date )
+				continuity_broken = True
 		previous_path = path
 
 	exit(1) if continuity_broken else exit(0)
@@ -70,6 +71,15 @@ def wal_paths():
 def timestamp_to_string(timestamp):
 	time_struct = time.localtime(timestamp)
 	return time.strftime("%Y-%m-%d %H:%M:%S %Z", time_struct)
+
+def known_missing_wal(path):
+	known_missing_paths = []
+	known_missing_list_path = "/etc/postgresql/cybera/missing_wal_paths.list"
+	if os.path.isfile(known_missing_list_path):
+		with open(known_missing_list_path) as f:
+			known_missing_paths = f.readlines()
+	return (path in known_missing_paths)
+
 
 if __name__ == "__main__":
 	main()
