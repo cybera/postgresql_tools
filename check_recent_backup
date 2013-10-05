@@ -1,0 +1,39 @@
+#!/usr/bin/python
+
+# Usage: check_recent_backup
+# Checks that files exist in the backup directory that represent a daily backup for the current date.
+# An exit status of 1 will occur if one of the backups (data or xlog) does not exist. This script assumes
+# backups were made with omnipitr, or another tool that divides the backup into data and xlog files.
+
+import time, re, glob
+
+# TODO: make configurable
+data_name_format = ".*?-data-%Y-%m-%d.tar.gz"
+xlog_name_format = ".*?-xlog-%Y-%m-%d.tar.gz"
+backup_directory = "/backups"
+
+def main():
+        check_path(backup_directory, data_name_format, "data")
+        check_path(backup_directory, xlog_name_format, "xlog")
+
+def check_path(path, format, backup_type):
+        current_backup = matching_path(path, format)
+        if current_backup:
+                print current_backup
+        else:
+                print "Missing today's %s backup!" % backup_type
+                exit(1)
+
+def matching_path(path, format):
+        paths = glob.glob("%s/*" % path)
+        for path in paths:
+                if compile_match_regex(format).match(path): return path
+        return None
+
+def compile_match_regex(format):
+        time_struct = time.localtime(time.time())
+        match_str = time.strftime(format, time_struct)
+        return re.compile(match_str)
+
+if __name__ == "__main__":
+        main()
