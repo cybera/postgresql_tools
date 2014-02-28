@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+##############################################################################
+# Output:
+#
+# <<<sample_time*>>><<<datid>>><<<datname>>><<<procpid>>><<<usesysid>>>
+# <<<usename>>><<<application_name>>><<<client_addr>>><<<client_hostname>>>
+# <<<client_port>>><<<backend_start>>><<<xact_start>>><<<query_start>>>
+# <<<waiting>>><<<current_query>>>
+#
+# *(added by this script)
+##############################################################################
+
+SLEEPTIME = 1 # Amount of time to wait between samples
+SAMPLES = 10  # Number of samples to take per run
+
+import psycopg2, time, datetime
+
+# Get the current time in the same format as times show up in
+# postgresql query results
+def current_pgtime():
+	pg_timezone_offset = "%02d:00" % (time.timezone/3600)
+	current_timestr = datetime.datetime.now()
+	return "%s-%s" % (current_timestr, pg_timezone_offset)
+
+connection = psycopg2.connect("dbname=moodle")
+cursor = connection.cursor()
+
+try:
+	# Take a number of samples, sleeping for SLEEPTIME between
+	# each one
+	for sample in range(0,SAMPLES):
+		sample_time = current_pgtime()
+		cursor.execute("SELECT * FROM pg_stat_activity;")
+
+		# Print out each record, prepending the sample time
+		for record in cursor:
+			fields = [" ".join(str(field).split()) for field in record]
+			output = "<<<%s>>>%s" % (sample_time, "".join(["<<<%s>>>" % field for field in fields]))
+			if "pg_stat_activity" not in output:
+				print output
+
+		time.sleep(SLEEPTIME)
+
+finally:
+	cursor.close()
+	connection.close()
